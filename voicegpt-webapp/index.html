@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Record and save audio</title>
+    <style>
+        audio {
+            display: block;
+            margin: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <button id="record">Record</button>
+    <button id="stop" disabled>Stop</button>
+    <button id="save" disabled>Save</button>
+
+    <script>
+        let recorder;
+        let audio;
+        let audioCount = 0;
+
+        const recordAudio = () =>
+            new Promise(async resolve => {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const mediaRecorder = new MediaRecorder(stream);
+                let audioChunks = [];
+
+                mediaRecorder.addEventListener('dataavailable', event => {
+                    audioChunks.push(event.data);
+                });
+
+                const start = () => {
+                    audioChunks = [];
+                    mediaRecorder.start();
+                };
+
+                const stop = () =>
+                    new Promise(resolve => {
+                        mediaRecorder.addEventListener('stop', () => {
+                            const audioBlob = new Blob(audioChunks, { type: 'audio/mpeg' });
+                            const audioUrl = URL.createObjectURL(audioBlob);
+                            const audio = new Audio(audioUrl);
+                            const play = () => audio.play();
+                            resolve({ audioChunks, audioBlob, audioUrl, play });
+                        });
+
+                        mediaRecorder.stop();
+                    });
+
+                resolve({ start, stop });
+            });
+
+        const sleep = time => new Promise(resolve => setTimeout(resolve, time));
+
+        const recordButton = document.querySelector('#record');
+        const stopButton = document.querySelector('#stop');
+        const saveButton = document.querySelector('#save');
+        const savedAudioMessagesContainer = document.querySelector('#saved-audio-messages');
+
+        recordButton.addEventListener('click', async () => {
+            recordButton.setAttribute('disabled', true);
+            stopButton.removeAttribute('disabled');
+            saveButton.setAttribute('disabled', true);
+            if (!recorder) {
+                recorder = await recordAudio();
+            }
+            recorder.start();
+        });
+
+        stopButton.addEventListener('click', async () => {
+            console.log('stoped recording');
+            recordButton.removeAttribute('disabled');
+            stopButton.setAttribute('disabled', true);
+            saveButton.removeAttribute('disabled');
+            audio = await recorder.stop();
+        });
+
+
+        saveButton.addEventListener('click', () => {
+            console.log('creating dom node');
+            // create an audio node in body to show in UI
+            const audioElement = window.document.createElement('AUDIO');
+            audioElement.setAttribute('id', `audio_${audioCount}`);
+            audioElement.setAttribute('controls', 'controls');
+            audioElement.src = window.URL.createObjectURL(audio.audioBlob)
+
+            // api to call to voice gpt server
+            const formData = new FormData();
+            formData.append('audio', audio.audioBlob)
+            fetch('http://localhost:3001/api/v1/talk', {
+                method: 'POST',
+                "Content-Type": 'multipart/form-data',
+                body: formData
+            }).then(res => {
+                if (!res.ok) {
+                    alert('Error fetching results')
+                }
+                res.json().then(data => {
+                    const resAudioElement = window.document.createElement('AUDIO');
+                    resAudioElement.setAttribute('id', `audio_${audioCount}`);
+                    resAudioElement.setAttribute('controls', 'controls');
+                    resAudioElement.style.backgroundColor = "#17ab8f"
+                    resAudioElement.src = data.result[0].url;
+                    window.document.body.appendChild(resAudioElement);
+                    audioCount++;
+                })
+            });
+
+            window.document.body.appendChild(audioElement);
+            audioCount++;
+        });
+    </script>
+</body>
+
+</html>
