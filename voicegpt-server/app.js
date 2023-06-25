@@ -66,7 +66,10 @@ app.post('/api/v1/talk', upload.single('audio'), (req, res) => {
     async.auto({
         speechToText: (cb) => {
             const audio_response = speech.speechToText(path);
-            return cb(null, audio_response);
+            if (!audio_response.transcript) {
+                return cb("Error generating speech to text");
+            }
+            return cb(null, audio_response.transcript);
         },
         fetchGPTresponse: ['speechToText', (results, cb) => {
             if (!results.speechToText) {
