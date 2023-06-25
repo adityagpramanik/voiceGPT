@@ -2,24 +2,126 @@
 <html>
 
 <head>
-    <title>Record and save audio</title>
+    <title>VoiceGPT</title>
     <style>
         audio {
             display: block;
             margin: 5px;
         }
+        .btn-container {
+            margin: 20px;
+        }
+        .row-flex {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+        }
+        button {
+            border-radius: 5px;
+            background-color: rgb(221, 255, 211);
+            border: 1px solid rgb(153, 194, 230);
+            color: rgb(23, 135, 97);
+            font-family: sans-serif;
+            padding: 4px 8px;
+        }
+        button:disabled {
+            opacity: 0.5;
+        }
+        .server-audio-box {
+            display: flex;
+            justify-content: flex-start;
+            align-self: flex-start;
+            text-align: left;
+            padding: 10px;
+            width: 50%;
+            margin: 10px;
+        }
+        .client-audio-box {
+            display: flex;
+            justify-content: flex-end;
+            align-self: flex-end;
+            text-align: right;
+            padding: 10px;
+            width: 50%;
+            margin: 10px;
+        }
+
+        .client-audio {
+            filter: drop-shadow(0px 2px 1px rgb(137, 108, 108));
+        }
+        .client-audio:hover {
+            transform: scale(1.1);
+        }
+        .server-audio {
+            filter: drop-shadow(0px 2px 1px rgb(50, 86, 73));
+        }
+        .server-audio:hover {
+            transform: scale(1.1);
+        }
+
+
+        #stop {
+            background-color: rgb(222, 106, 147);
+            border: 1px solid rgb(153, 194, 230);
+            color: rgb(4, 21, 16);
+        }
+        #record {
+            background-color: rgb(133, 181, 249);
+            border: 1px solid rgb(101, 152, 197);
+            color: rgb(4, 21, 16);
+        }
+        #bottombar {
+            height: 10%;
+            position: fixed;
+            border: 1px solid rgb(153, 194, 230);
+            box-shadow: 0px 3px rgb(153, 194, 230);
+            bottom: 10px;
+            background-color: rgb(236, 250, 250);
+            width: 99%;
+            text-align: center;
+            display: block;
+            padding: 0%;
+            border-radius: 10px;
+            justify-content: center;
+        }
+        #chat-box {
+            background-color: rgb(230, 233, 246);
+            position: fixed;
+            display: flex;
+            top: 2%;
+            height: 84%;
+            width: 99%;
+            border-radius: 10px;
+            flex-direction: column-reverse;
+        }
     </style>
 </head>
 
 <body>
-    <button id="record">Record</button>
-    <button id="stop" disabled>Stop</button>
-    <button id="save" disabled>Save</button>
+    <div id="chat-box">
+    </div>
 
+    <div id="bottombar">
+        <div class="row-flex">
+            <div class="btn-container">
+                <button id="record">Record</button>
+            </div>
+            <div class="btn-container">
+                <button id="stop" disabled>Stop</button>
+            </div>
+            <div class="btn-container">
+                <button id="save" disabled>Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- all script goes here -->
     <script>
         let recorder;
         let audio;
         let audioCount = 0;
+        let audioMap = {}
 
         const recordAudio = () =>
             new Promise(async resolve => {
@@ -51,13 +153,54 @@
 
                 resolve({ start, stop });
             });
-
-        const sleep = time => new Promise(resolve => setTimeout(resolve, time));
-
         const recordButton = document.querySelector('#record');
         const stopButton = document.querySelector('#stop');
         const saveButton = document.querySelector('#save');
         const savedAudioMessagesContainer = document.querySelector('#saved-audio-messages');
+
+        const getGPTresponse = (audioBlob) => {
+            const formData = new FormData();
+            formData.append('audio', audioBlob)
+            fetch('http://localhost:3001/api/v1/talk', {
+                method: 'POST',
+                "Content-Type": 'multipart/form-data',
+                body: formData
+            }).then(res => {
+                if (!res.ok) {
+                    alert('Error fetching results')
+                }
+                res.json().then(data => {
+                    const chatbox = document.getElementById('chat-box')
+                    const serverAudioDiv = window.document.createElement('div');
+                    serverAudioDiv.setAttributeNS('class', 'server-audio-box')
+
+                    const resAudioElement = window.document.createElement('AUDIO');
+                    resAudioElement.setAttribute('id', `audio_${audioCount}`);
+                    resAudioElement.setAttribute('class', 'server-audio');
+                    resAudioElement.setAttribute('controls', 'controls');
+                    resAudioElement.style.backgroundColor = "#17ab8f"
+                    resAudioElement.src = data.result[0].url;
+                    window.document.body.appendChild(resAudioElement);
+                    audioCount++;
+                })
+            });
+        }
+
+        function createAudioElement(blob) {
+            const chatbox = document.getElementById('chat-box')
+            const clientAudioDiv = window.document.createElement('div');
+            clientAudioDiv.setAttribute('class', 'client-audio-box')
+            
+            const audioElement = window.document.createElement('AUDIO');
+            audioElement.setAttribute('id', `audio_${audioCount}`);
+            audioElement.setAttribute('class', 'client-audio');
+            audioElement.setAttribute('controls', 'controls');
+            audioElement.src = window.URL.createObjectURL(audio.audioBlob)
+
+            clientAudioDiv.appendChild(audioElement);
+            chatbox.appendChild(clientAudioDiv);
+            audioCount++;
+        }
 
         recordButton.addEventListener('click', async () => {
             recordButton.setAttribute('disabled', true);
@@ -77,39 +220,17 @@
             audio = await recorder.stop();
         });
 
-
-        saveButton.addEventListener('click', () => {
-            console.log('creating dom node');
-            // create an audio node in body to show in UI
-            const audioElement = window.document.createElement('AUDIO');
-            audioElement.setAttribute('id', `audio_${audioCount}`);
-            audioElement.setAttribute('controls', 'controls');
-            audioElement.src = window.URL.createObjectURL(audio.audioBlob)
-
-            // api to call to voice gpt server
-            const formData = new FormData();
-            formData.append('audio', audio.audioBlob)
-            fetch('http://localhost:3001/api/v1/talk', {
-                method: 'POST',
-                "Content-Type": 'multipart/form-data',
-                body: formData
-            }).then(res => {
-                if (!res.ok) {
-                    alert('Error fetching results')
+        saveButton.addEventListener('click', function () {
+            // create an audio node in body to show in UI if not already present
+            audio.audioBlob.text().then((val) => {
+                audioMap[audioCount] = val;
+                if (audioCount && (audioMap[audioCount-1] === audioMap[audioCount])) {
+                    alert('Please ask a different question')
+                    return;
                 }
-                res.json().then(data => {
-                    const resAudioElement = window.document.createElement('AUDIO');
-                    resAudioElement.setAttribute('id', `audio_${audioCount}`);
-                    resAudioElement.setAttribute('controls', 'controls');
-                    resAudioElement.style.backgroundColor = "#17ab8f"
-                    resAudioElement.src = data.result[0].url;
-                    window.document.body.appendChild(resAudioElement);
-                    audioCount++;
-                })
+                createAudioElement(audio.audioBlob);
+                // getGPTresponse(audio.audioBlob);
             });
-
-            window.document.body.appendChild(audioElement);
-            audioCount++;
         });
     </script>
 </body>
