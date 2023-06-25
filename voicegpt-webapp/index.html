@@ -46,20 +46,16 @@
             width: 50%;
             margin: 10px;
         }
-
+        
+        .client-audio:hover, .server-audio:hover {
+            transform: scale(1.05);
+        }
         .client-audio {
             filter: drop-shadow(0px 2px 1px rgb(137, 108, 108));
-        }
-        .client-audio:hover {
-            transform: scale(1.1);
         }
         .server-audio {
             filter: drop-shadow(0px 2px 1px rgb(50, 86, 73));
         }
-        .server-audio:hover {
-            transform: scale(1.1);
-        }
-
 
         #stop {
             background-color: rgb(222, 106, 147);
@@ -87,13 +83,13 @@
         }
         #chat-box {
             background-color: rgb(230, 233, 246);
-            position: fixed;
             display: flex;
-            top: 2%;
+            flex-direction: column;
             height: 84%;
             width: 99%;
+            flex: 1;
+            overflow-y: auto;
             border-radius: 10px;
-            flex-direction: column-reverse;
         }
     </style>
 </head>
@@ -121,7 +117,6 @@
         let recorder;
         let audio;
         let audioCount = 0;
-        let audioMap = {}
 
         const recordAudio = () =>
             new Promise(async resolve => {
@@ -172,7 +167,8 @@
                 res.json().then(data => {
                     const chatbox = document.getElementById('chat-box')
                     const serverAudioDiv = window.document.createElement('div');
-                    serverAudioDiv.setAttributeNS('class', 'server-audio-box')
+                    serverAudioDiv.setAttribute('class', 'server-audio-box')
+                    serverAudioDiv.textContent = (new Date()).toLocaleString();
 
                     const resAudioElement = window.document.createElement('AUDIO');
                     resAudioElement.setAttribute('id', `audio_${audioCount}`);
@@ -180,7 +176,9 @@
                     resAudioElement.setAttribute('controls', 'controls');
                     resAudioElement.style.backgroundColor = "#17ab8f"
                     resAudioElement.src = data.result[0].url;
-                    window.document.body.appendChild(resAudioElement);
+                    serverAudioDiv.appendChild(resAudioElement);
+                    chatbox.appendChild(serverAudioDiv);
+                    chatbox.scrollTop += 500;
                     audioCount++;
                 })
             });
@@ -190,15 +188,17 @@
             const chatbox = document.getElementById('chat-box')
             const clientAudioDiv = window.document.createElement('div');
             clientAudioDiv.setAttribute('class', 'client-audio-box')
+            clientAudioDiv.textContent = (new Date()).toLocaleString();
             
             const audioElement = window.document.createElement('AUDIO');
             audioElement.setAttribute('id', `audio_${audioCount}`);
             audioElement.setAttribute('class', 'client-audio');
             audioElement.setAttribute('controls', 'controls');
             audioElement.src = window.URL.createObjectURL(audio.audioBlob)
-
+            
             clientAudioDiv.appendChild(audioElement);
             chatbox.appendChild(clientAudioDiv);
+            chatbox.scrollTop += 500;
             audioCount++;
         }
 
@@ -211,7 +211,7 @@
             }
             recorder.start();
         });
-
+        
         stopButton.addEventListener('click', async () => {
             console.log('stoped recording');
             recordButton.removeAttribute('disabled');
@@ -221,16 +221,10 @@
         });
 
         saveButton.addEventListener('click', function () {
+            saveButton.setAttribute('disabled', true);
             // create an audio node in body to show in UI if not already present
-            audio.audioBlob.text().then((val) => {
-                audioMap[audioCount] = val;
-                if (audioCount && (audioMap[audioCount-1] === audioMap[audioCount])) {
-                    alert('Please ask a different question')
-                    return;
-                }
-                createAudioElement(audio.audioBlob);
-                // getGPTresponse(audio.audioBlob);
-            });
+            createAudioElement(audio.audioBlob);
+            getGPTresponse(audio.audioBlob);
         });
     </script>
 </body>

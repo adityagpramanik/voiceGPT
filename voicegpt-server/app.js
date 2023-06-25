@@ -59,7 +59,6 @@ app.get('/', (req, res) => {
 
 // voiceGPT API
 app.post('/api/v1/talk', upload.single('audio'), (req, res) => {
-    const debug = false;
     if (!req.file || !req.file.path) {
         return res.status(403).send({error: 'Please attach an audio file!'});
     }
@@ -67,19 +66,16 @@ app.post('/api/v1/talk', upload.single('audio'), (req, res) => {
     
     async.auto({
         speechToText: (cb) => {
-            if (debug || true) {
-                return cb(null, false);
-            }
             const audio_response = speech.speechToText(path);
-            return cb(null, audio_response);
+            if (!audio_response.transcript) {
+                return cb("Error generating speech to text");
+            }
+            return cb(null, audio_response.transcript);
         },
         fetchGPTresponse: ['speechToText', (results, cb) => {
-            if (debug) {
-                return cb(null, false);
+            if (!results.speechToText) {
+                return cb('Unable to process given audio file');
             }
-            // if (!results.speechToText) {
-            //     return cb('Unable to process given audio file');
-            // }
 
             const text = results.speechToText || "What is an apple?";
             const { headers, payload } = createRequest(text);
