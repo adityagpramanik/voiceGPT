@@ -10,10 +10,8 @@ const googleTTS = require('google-tts-api');
 // services
 const speech = require('./services/speech')
 
-// global vars
-const GPT_URL = 'https://api.pawan.krd/v1/completions'
-
 // secrets
+const GPT_URL = process.env.GPT_URL
 const PAWAN_API = process.env.PAWAN_API
 const PORT = process.env.PORT
 
@@ -84,12 +82,10 @@ app.post('/api/v1/talk', upload.single('audio'), (req, res) => {
             axios.post(GPT_URL, payload, {
                 headers: headers
             }).then((response) => {
-                console.log('response from GPT: ', response);
                 if (!response.data) {
                     return cb('Error fetching reply from GPT');
                 }
                 if (!response.data.choices || !response.data.choices.length) {
-                    console.log('here:');
                     return cb(null, ['Sorry I don\'t know this one.']);
                 }
                 return cb(null, response.data.choices);

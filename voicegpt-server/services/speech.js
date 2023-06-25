@@ -1,8 +1,6 @@
 require('dotenv').config()
 const { Leopard } = require("@picovoice/leopard-node");
 const fs = require("fs");
-const async = require('async');
-const { randomUUID } = require('crypto');
 const STT_API = process.env.PICOVOICE_STT_API;
 
 
