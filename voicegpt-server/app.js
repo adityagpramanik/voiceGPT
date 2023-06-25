@@ -82,6 +82,7 @@ app.post('/api/v1/talk', upload.single('audio'), (req, res) => {
             axios.post(GPT_URL, payload, {
                 headers: headers
             }).then((response) => {
+                console.log('response: ', response);
                 if (!response.data) {
                     return cb('Error fetching reply from GPT');
                 }
@@ -107,7 +108,8 @@ app.post('/api/v1/talk', upload.single('audio'), (req, res) => {
         }]
     }, function (err, results) {
         if (err) {
-            return res.status(err.status || 400).send({info: 'Unable to process your request', error: err})
+            console.log('ERR: ', err);
+            return res.status(err.status || 400).send({error: 'Unable to process your request'})
         }
         return res.send({result: results.textToSpeech, info: 'Text response for the audio send to GPT'})
     });
