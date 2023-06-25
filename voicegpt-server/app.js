@@ -11,11 +11,10 @@ const googleTTS = require('google-tts-api');
 const speech = require('./services/speech')
 
 // global vars
-const GPT_URL = 'https://api.openai.com/v1/chat/completions'
+const GPT_URL = 'https://api.pawan.krd/v1/completions'
 
 // secrets
-const GPT_API = process.env.GPT_API
-const GPT_ORG = process.env.GPT_ORG
+const PAWAN_API = process.env.PAWAN_API
 const PORT = process.env.PORT
 
 const app = express()
@@ -32,16 +31,18 @@ app.use(cors({
 // local helpers
 function createRequest(text) {
     const headers = {
-        'Authorization': `Bearer ${GPT_API}`,
+        'Authorization': `Bearer ${PAWAN_API}`,
         'Content-Type': 'application/json'
     }
     const payload = {
-        "model": "gpt-3.5-turbo",
-        "messages": [{
-            "role": "user",
-            "content": text
-        }],
-        "temperature": 0.7
+        "model": "text-davinci-003",
+        "prompt": text,
+        "temperature": 0.7,
+        "max_tokens": 256,
+        "stop": [
+            "Human:",
+            "AI:"
+        ]
     }
 
     return {
@@ -76,9 +77,9 @@ app.post('/api/v1/talk', upload.single('audio'), (req, res) => {
             if (debug) {
                 return cb(null, false);
             }
-            if (!results.speechToText) {
-                return cb('Unable to process given audio file');
-            }
+            // if (!results.speechToText) {
+            //     return cb('Unable to process given audio file');
+            // }
 
             const text = results.speechToText || "What is an apple?";
             const { headers, payload } = createRequest(text);
