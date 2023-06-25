@@ -29,6 +29,7 @@ app.use(cors({
 // local helpers
 function createRequest(text) {
     const headers = {
+        'Accept': '*/*',
         'Authorization': `Bearer ${PAWAN_API}`,
         'Content-Type': 'application/json'
     }
