@@ -39,7 +39,7 @@ function createRequest(text) {
         "model": "gpt-3.5-turbo",
         "messages": [{
             "role": "user",
-            "content": "Say this is a test!"
+            "content": text
         }],
         "temperature": 0.7
     }
@@ -58,7 +58,7 @@ app.get('/', (req, res) => {
 
 // voiceGPT API
 app.post('/api/v1/talk', upload.single('audio'), (req, res) => {
-    const debug = true;
+    const debug = false;
     if (!req.file || !req.file.path) {
         return res.status(403).send({error: 'Please attach an audio file!'});
     }
@@ -66,7 +66,7 @@ app.post('/api/v1/talk', upload.single('audio'), (req, res) => {
     
     async.auto({
         speechToText: (cb) => {
-            if (debug) {
+            if (debug || true) {
                 return cb(null, false);
             }
             const audio_response = speech.speechToText(path);
@@ -80,30 +80,30 @@ app.post('/api/v1/talk', upload.single('audio'), (req, res) => {
                 return cb('Unable to process given audio file');
             }
 
-            const text = results.speechToText;
+            const text = results.speechToText || "What is an apple?";
             const { headers, payload } = createRequest(text);
             
             console.log('text: ', text);
             axios.post(GPT_URL, payload, {
                 headers: headers
             }).then((response) => {
-                console.log('response: ', response);
-                if (!response.ok) {
+                console.log('response from GPT: ', response);
+                if (!response.data) {
                     return cb('Error fetching reply from GPT');
                 }
-                if (!response.data || !response.data.choices || !response.data.choices.length) {
-                    return cb(null, 'Sorry I don\'t know this one.');
+                if (!response.data.choices || !response.data.choices.length) {
+                    console.log('here:');
+                    return cb(null, ['Sorry I don\'t know this one.']);
                 }
-                const data = response.data;
-                console.log('data: ', data);
-                return cb(null, data.choices);
+                return cb(null, response.data.choices);
             }).catch((err) => {
                 return cb(err);
             });
         }],
         textToSpeech: ['fetchGPTresponse', (results, cb) => {
-            const reply_text = ['Instagram is an social media platform owned by Meta.']
-            const reply_speech = googleTTS.getAllAudioUrls(reply_text[0], {
+            const reply_text = results.fetchGPTresponse;
+            // TODO: all responses can be converted to audio response and send to client
+            const reply_speech = googleTTS.getAllAudioUrls(reply_text[0].text, {
                 lang: 'en',
                 slow: false,
                 host: 'https://translate.google.com',
